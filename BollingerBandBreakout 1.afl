@@ -1,0 +1,66 @@
+_SECTION_BEGIN("BollingerBandBreakout");
+// Code for http://bettersystemtrader.com/bollinger-band-trading-strategy/
+//
+// DISCLAIMER: This code is provide for educational purposes only. 
+// It is provided as is, with no support. In no event shall Better System Trader be liable for any special, 
+// incidental, indirect or consequential damages of any kind, or any damages whatsoever, including, 
+// without limitation, those resulting from loss of use, data or profits, whether or not advised of the possibility of damage, 
+// and on any theory of liability, arising out of or in connection with the use or performance of these files or other files 
+// which are referenced by or linked to this file. You should not assume that any of these files are error-free or that 
+// it will be suitable for the particular purpose which you have in mind when using it. 
+
+
+MaximumPositions = 10;
+InitialEquity = 100000;
+CompoundedProfits = 0; //1 = yes, 0 = no
+CommissionAmount = 10; 
+
+SetOption( "InitialEquity", InitialEquity );
+SetOption( "MaxOpenPositions", MaximumPositions);
+SetOption( "CommissionMode", 2 );//1 = percent, 2 = fixed
+SetOption( "CommissionAmount", CommissionAmount );
+RoundLotSize = 1;
+
+// Check index constituents - http://premiumdata.net/support/amibroker-alphatester_hic.php
+// NOTE: Remove the next 2 lines if you do not have index constituents data from Premium Data
+
+
+//Strategy parameters
+BBTopPeriods = 100;
+BBTopWidth = 3;
+BBBottomPeriods = 100;
+BBBottomWidth = 1;
+EndDate = Year()==2014 AND DayOfYear()==365; //Close trades at end of test period
+
+LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth);
+LongExit = C < BBandBot(C, BBBottomPeriods, BBBottomWidth);
+
+goodcandle= (High-Low)*.7 < (Close-Open);
+
+//Check market trend
+SetForeign("Nifty 500");
+IndexDownTrend = C < MA(C,100);
+RestorePriceArrays();
+
+//Rank the stocks when multiple signals occur
+Rank = 1-Ref(ROC(C,90),-1); //Lowest ROC over 90 days yesterday
+PositionScore = Rank;
+
+//Position Size
+PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
+
+//Buy/Sell signals
+Buy=  Ref(LongEntry,-1) AND NOT Ref(IndexDownTrend,-1) AND goodcandle; //NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
+Sell= Ref(LongExit,-1) OR Ref(IndexDownTrend,-1); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
+
+Buy= ExRem( Buy, Sell);
+Sell= ExRem( Sell, Buy);
+BuyPrice=SellPrice=Open;
+Short=Cover=0;
+_SECTION_END();
+
+_SECTION_BEGIN("Price1");
+SetChartOptions(0,chartShowArrows|chartShowDates);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
+Plot( C, "Close", ParamColor("Color", colorDefault ), styleNoTitle | ParamStyle("Style") | GetPriceStyle() ); 
+_SECTION_END();

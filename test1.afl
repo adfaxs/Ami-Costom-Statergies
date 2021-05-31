@@ -1,0 +1,68 @@
+/// Systematic market structure trading strategy
+/// Long-only US equties swing trading version
+/// As presented in 2 videos by Critical Trading on YouTube https://youtu.be/QKCDt2QnmeM & https://youtu.be/rKGXIopVeQ0
+/// Source: Critical-Trading.com
+/// This code may be freely shared & amended
+/// Risk disclaimer - for Study purposes only, NOT an actual investment advice - refer to risk diclaimer at https://www.critical-trading.com/privacy-policy
+/// Backtester settings
+max_positions = 10;
+margin_used = 100; /// 50 = 50% margin (standard margin when trading US stocks) OR 100 = no margin
+SetOption("InitialEquity",300000);
+SetOption("MaxOpenPositions",max_positions);
+SetPositionSize(IIf(margin_used==50,200/max_positions,100/max_positions),spsPercentOfEquity);
+SetOption("ActivateStopsImmediately",True);
+SetOption("accountmargin",margin_used);
+SetOption("AllowPositionShrinking", True);
+SetOption("AllowSameBarExit", True);
+SetOption("FuturesMode", False);
+SetOption("UsePrevBarEquityForPosSizing",True);
+SetTradeDelays( 1, 0, 0, 0);
+SetBacktestMode( backtestRegular);
+//// VIX lter
+SetForeign("India VIX"); /// need to have VIX data & ensure the ticker here is correct
+VIXlter = 1;//PercentRank(C,100) <= 85;
+RestorePriceArrays();
+//// Variables - highest high
+days = (21*3);
+ndayhigh = HHV(H,days);
+H_breakout = H > Ref(ndayhigh,-1);
+H_breakout_count = BarsSince(H_breakout) < 10;
+//// Variables - ATR
+days_ATR = 20;
+ATRvar = ATR(days_ATR)*2;
+//// Adaptive buy level loop
+Limit_buy = Null;
+for( i = 1; i < BarCount; i++ )
+{
+if( H_breakout[i] )
+{
+Limit_buy[i] = Low[ i ] - ATRvar[i];
+}
+if( NOT H_breakout[i] AND H_breakout_count [i] )
+{
+Limit_buy[ i ] = Limit_buy[i-1];
+}
+if( L[i] < Limit_buy[ i - 1 ])
+{
+Limit_buy[ i ] = Null;
+}
+}
+//// Buy rule & buy price
+Buy = H_breakout_count AND L < Ref(Limit_buy,-1) AND C < O AND VIXlter AND C > 20;
+BuyPrice = Open;
+/// Variable stop-loss adjusted for market's volatility
+SLatentry = ValueWhen(Buy,Ref(ATRvar,-1));
+//// Sell rule and price
+Sell = C < EMA(C,50);// C > Ref(HHV(C,2),-1); /// basic exit rule used here as presented in the video
+SellPrice = close;
+//// (stocks only) Ranking system - used to rank when multiple signals generated, swing trading only
+HV = StDev(ROC(C,1),252)*sqrt( 252 );
+PositionScore = 1 / Hv;
+//// Stop-loss - based on ATR
+ApplyStop(stopTypeLoss,stopModePoint,SLatentry,1);
+
+_SECTION_BEGIN("Price1");
+SetChartOptions(0,chartShowArrows|chartShowDates);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
+Plot( C, "Close", ParamColor("Color", colorDefault ), styleNoTitle | ParamStyle("Style") | GetPriceStyle() ); 
+_SECTION_END();
