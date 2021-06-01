@@ -11,7 +11,7 @@ _SECTION_BEGIN("BollingerBandBreakout");
 
 
 MaximumPositions = 10;
-InitialEquity = 100000;
+InitialEquity = 300000;
 CompoundedProfits = 0; //1 = yes, 0 = no
 CommissionAmount = 25; 
 
@@ -43,9 +43,11 @@ IndexDownTrend = C < MA(C,100);
 RestorePriceArrays();
 
 //Rank the stocks when multiple signals occur
-Rank = 100-Ref(ROC(C,50),-1); //Lowest ROC over 90 days yesterday
-PositionScore = Rank;
+//Rank = 100-Ref(ROC(C,50),-1); //Lowest ROC over 90 days yesterday
+//PositionScore = Rank;
 
+HV = StDev(ROC(C,1),100)*sqrt( 100 );
+PositionScore = 1 / Hv;
 //Position Size
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 

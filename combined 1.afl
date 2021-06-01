@@ -35,7 +35,7 @@ BBBottomWidth = 1;
 
 goodcandle= (High-Low)*.7 < (Close-Open);
 
-LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth);// AND NOT goodcandle;
+LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth);
 LongExit = C < BBandBot(C, BBBottomPeriods, BBBottomWidth);
 //Check market trend
 SetForeign("NSE:NIFTY");
@@ -43,9 +43,10 @@ IndexDownTrend = C < MA(C,100);
 RestorePriceArrays();
 
 //Rank the stocks when multiple signals occur
-Rank = 100-Ref(ROC(C,50),-1); //Lowest ROC over 90 days yesterday
-PositionScore = Rank;
-
+//Rank = 100-Ref(ROC(C,90),-1); //Lowest ROC over 90 days yesterday
+//PositionScore = Rank;
+HV = StDev(ROC(C,1),252)*sqrt( 252 );
+PositionScore = 1 / Hv;
 //Position Size
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
@@ -76,14 +77,14 @@ Limit_buy[ i ] = Null;
 }
 }
 
-Buy = H_breakout_count AND L < Ref(Limit_buy,-1) AND C < O AND NOT Ref(IndexDownTrend,-1);
+Buy = H_breakout_count AND L < Ref(Limit_buy,-1) AND C < O AND NOT Ref(IndexDownTrend,-1) ;
 
 
 
 
 //Buy/Sell signals
 //Buy=  Ref(LongEntry,-1) AND NOT Ref(IndexDownTrend,-1) AND goodcandle; //NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
-Sell= Ref(LongExit,-1) OR Ref(IndexDownTrend,-1); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
+Sell= Ref(LongExit,-1) OR  Ref(IndexDownTrend,-1); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
 
 
 Buy= ExRem( Buy, Sell);

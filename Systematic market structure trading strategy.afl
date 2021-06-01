@@ -19,8 +19,8 @@ SetOption("UsePrevBarEquityForPosSizing",True);
 SetTradeDelays( 1, 0, 0, 0);
 SetBacktestMode( backtestRegular);
 //// VIX lter
-SetForeign("India VIX"); /// need to have VIX data & ensure the ticker here is correct
-VIXlter = 1;//PercentRank(C,100) <= 85;
+SetForeign("NSE:INDIAVIX"); /// need to have VIX data & ensure the ticker here is correct
+VIXlter = PercentRank(C,100) <= 12;
 RestorePriceArrays();
 //// Variables - highest high
 days = (21*3);
@@ -48,7 +48,7 @@ Limit_buy[ i ] = Null;
 }
 }
 //// Buy rule & buy price
-Buy = H_breakout_count AND L < Ref(Limit_buy,-1) AND C < O AND VIXlter AND C > 20;
+Buy = H_breakout_count AND L < Ref(Limit_buy,-1) AND C < O AND VIXlter ;
 BuyPrice = Open;
 /// Variable stop-loss adjusted for market's volatility
 SLatentry = ValueWhen(Buy,Ref(ATRvar,-1));
