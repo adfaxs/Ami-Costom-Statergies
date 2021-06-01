@@ -13,7 +13,7 @@ _SECTION_BEGIN("BollingerBandBreakout");
 MaximumPositions = 10;
 InitialEquity = 100000;
 CompoundedProfits = 0; //1 = yes, 0 = no
-CommissionAmount = 10; 
+CommissionAmount = 25; 
 
 SetOption( "InitialEquity", InitialEquity );
 SetOption( "MaxOpenPositions", MaximumPositions);
@@ -38,12 +38,12 @@ LongExit = C < BBandBot(C, BBBottomPeriods, BBBottomWidth);
 goodcandle= (High-Low)*.7 < (Close-Open);
 
 //Check market trend
-SetForeign("Nifty 500");
+SetForeign("NSE:NIFTY");
 IndexDownTrend = C < MA(C,100);
 RestorePriceArrays();
 
 //Rank the stocks when multiple signals occur
-Rank = 1-Ref(ROC(C,90),-1); //Lowest ROC over 90 days yesterday
+Rank = 100-Ref(ROC(C,50),-1); //Lowest ROC over 90 days yesterday
 PositionScore = Rank;
 
 //Position Size
@@ -53,9 +53,15 @@ PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/Maxim
 Buy=  Ref(LongEntry,-1) AND NOT Ref(IndexDownTrend,-1) AND goodcandle; //NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
 Sell= Ref(LongExit,-1) OR Ref(IndexDownTrend,-1); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
 
+
 Buy= ExRem( Buy, Sell);
 Sell= ExRem( Sell, Buy);
-BuyPrice=SellPrice=Open;
+
+SetTradeDelays( 1, 1, 0, 0 );
+SetOption( "AllowSameBarExit", 0 );
+
+
+BuyPrice=SellPrice=Close; 
 Short=Cover=0;
 _SECTION_END();
 
