@@ -12,7 +12,7 @@ _SECTION_BEGIN("BollingerBandBreakout");
 
 MaximumPositions = 10;
 InitialEquity = 300000;
-CompoundedProfits = 0; //1 = yes, 0 = no
+CompoundedProfits = 1; //1 = yes, 0 = no
 CommissionAmount = 25; 
 
 SetOption( "InitialEquity", InitialEquity );
@@ -51,7 +51,7 @@ PositionScore = 1 / Hv;
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
 //Buy/Sell signals
-Buy=  Ref(LongEntry,-1) AND NOT Ref(IndexDownTrend,-1) AND goodcandle; //NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
+Buy=  Ref(LongEntry,-1) AND NOT Ref(IndexDownTrend,-1) AND  goodcandle; //NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
 Sell= Ref(LongExit,-1) OR Ref(IndexDownTrend,-1); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
 
 
