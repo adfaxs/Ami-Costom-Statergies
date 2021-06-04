@@ -12,7 +12,7 @@ _SECTION_BEGIN("BollingerBandBreakout");
 
 MaximumPositions = 10;
 InitialEquity = 100000;
-CompoundedProfits = 0; //1 = yes, 0 = no
+CompoundedProfits = 1; //1 = yes, 0 = no
 CommissionAmount = 25; 
 
 SetOption( "InitialEquity", InitialEquity );
@@ -37,16 +37,29 @@ goodcandle= (High-Low)*.7 < (Close-Open);
 
 LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth);
 LongExit = C < BBandBot(C, BBBottomPeriods, BBBottomWidth);
+
+MA_100 = MA (C,100);
+BBTop = BBandTop (Close,100,3);	//Upper Bollinger Band 
+BBBottom = BBandBot (Close,100,1);	//Lower Bollinger  Band 
+BBWidth = ( (BBTop - BBBottom)  / MA_100 ) * 100;  // Bollinger Band Width
+
+
+
 //Check market trend
 SetForeign("NSE:NIFTY");
-IndexDownTrend = C < MA(C,100);
+days=Optimize("days",120,50,200,1);
+IndexDownTrend = C <eMA(L,days);
 RestorePriceArrays();
 
+
+
+
+
 //Rank the stocks when multiple signals occur
-//Rank = 100-Ref(ROC(C,90),-1); //Lowest ROC over 90 days yesterday
+Rank = 100-Ref(ROC(BBWidth,90),-1); //Lowest ROC over 90 days yesterday
 //PositionScore = Rank;
-HV = StDev(ROC(C,1),252)*sqrt( 252 );
-PositionScore = 1 / Hv;
+HV = StDev(ROC(C,14),252)*sqrt( 252 );
+PositionScore = 1 / HV;
 //Position Size
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
@@ -55,9 +68,9 @@ PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/Maxim
 
 
 H_breakout = LongEntry;
-H_breakout_count = BarsSince(H_breakout) < 10;
+H_breakout_count = BarsSince(H_breakout) < 5;
 //// Variables - ATR
-days_ATR = 20;
+days_ATR = Param("atrr",120,1,200,1);
 ATRvar = ATR(days_ATR)*2;
 //// Adaptive buy level loop
 Limit_buy = Null;
@@ -77,14 +90,14 @@ Limit_buy[ i ] = Null;
 }
 }
 
-Buy = H_breakout_count AND L < Ref(Limit_buy,-1) AND C < O AND NOT Ref(IndexDownTrend,-1) ;
+Buy = H_breakout_count AND L < Ref(Limit_buy,-1) AND NOT Ref(IndexDownTrend,-1) ;//AND Rank >55 ;
 
 
 
 
-//Buy/Sell signals
+//Buy/Sell signalsH
 //Buy=  Ref(LongEntry,-1) AND NOT Ref(IndexDownTrend,-1) AND goodcandle; //NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
-Sell= Ref(LongExit,-1) OR  Ref(IndexDownTrend,-1); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
+Sell= Ref(LongExit,-1) OR  Ref(IndexDownTrend,-1) ; //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
 
 
 Buy= ExRem( Buy, Sell);
@@ -92,6 +105,8 @@ Sell= ExRem( Sell, Buy);
 
 SetTradeDelays( 1, 1, 0, 0 );
 SetOption( "AllowSameBarExit", 0 );
+
+
 
 
 BuyPrice=SellPrice=Close; 
