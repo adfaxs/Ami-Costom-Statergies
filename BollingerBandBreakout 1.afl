@@ -10,7 +10,7 @@ _SECTION_BEGIN("BollingerBandBreakout");
 // it will be suitable for the particular purpose which you have in mind when using it. 
 
 
-MaximumPositions = 10;
+MaximumPositions = 15;
 InitialEquity = 300000;
 CompoundedProfits = 1; //1 = yes, 0 = no
 CommissionAmount = 25; 
@@ -26,23 +26,40 @@ RoundLotSize = 1;
 
 
 //Strategy parameters
-BBTopPeriods = Optimize("boli1",100,20,300,1);;
+BBTopPeriods = 100;
 BBTopWidth = 3;
-BBBottomPeriods = Optimize("boli",100,20,300,1);
+BBBottomPeriods = 100;
 BBBottomWidth = 1;
-EndDate = Year()==2014 AND DayOfYear()==365; //Close trades at end of test period
+MA_100 = MA (C,50);
 
-LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth);
+
+
+BBTop = BBandTop (Close,100,3);	//Upper Bollinger Band 
+BBBottom = BBandBot (Close,100,1);	//Lower Bollinger  Band 
+BBBottomup = BBandTop (Close,100,1);
+BBWidth = ( (BBTop - BBBottom)  / MA_100 ) * 100;  // Bollinger Band Width
+
+goodcandle= ((High-Low)*.75 < (Close-Open)) AND Ref(Volume,-1)> MA(Volume,20);
+
+LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth) ;
 LongExit = C < BBandBot(C, BBBottomPeriods, BBBottomWidth);
 
-goodcandle= (High-Low)*.7 < (Close-Open);
+
+
+
+Plot(BBTop,"",colorDarkGreen,styleThick);
+Plot(MA_100,"",4,styleDashed);
+Plot(BBBottomup,"",5,styleDashed);
+Plot(BBBottom,"",colorDarkRed,styleThick);
+
+
 
 //Check market trend
-SetForeign("NSE:NIFTY");
-IndexDownTrend = C < MA(C,100);
+SetForeign("NSE:CNX500");
+Par=Optimize("days",125,50,150,1);
+IndexDownTrend = C < MA(C,Par);
 RestorePriceArrays();
 
-//Rank the stocks when multiple signals occur
 
 HV = StDev(ROC(C,1),100)*sqrt( 100 );
 PositionScore = 1 / Hv;
@@ -51,8 +68,8 @@ PositionScore = 1 / Hv;
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
 //Buy/Sell signals
-Buy=  Ref(LongEntry,-1) AND NOT Ref(IndexDownTrend,-1) AND  goodcandle; //NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
-Sell= Ref(LongExit,-1) OR Ref(IndexDownTrend,-1); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
+Buy=  Ref(LongEntry,-0)  AND NOT Ref(IndexDownTrend,-0)  AND BBWidth<38 AND goodcandle;// NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
+Sell= Ref(LongExit,-1) OR (Ref(IndexDownTrend,-1) AND  L<MA(C,100)); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
 
 
 Buy= ExRem( Buy, Sell);
@@ -71,3 +88,9 @@ SetChartOptions(0,chartShowArrows|chartShowDates);
 _N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
 Plot( C, "Close", ParamColor("Color", colorDefault ), styleNoTitle | ParamStyle("Style") | GetPriceStyle() ); 
 _SECTION_END();
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorGreen, 0, L, Offset=-40); 
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorLime, 0,L, Offset=-50); 
+PlotShapes(IIf(Buy, shapeUpArrow, shapeNone),colorWhite, 0,L, Offset=-45); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorRed, 0, H, Offset=40); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorOrange, 0,H, Offset=50); 
+PlotShapes(IIf(Sell, shapeDownArrow, shapeNone),colorWhite, 0,H, Offset=-45); 
