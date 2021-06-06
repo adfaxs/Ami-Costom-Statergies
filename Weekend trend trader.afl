@@ -1,0 +1,84 @@
+_SECTION_BEGIN("weekend trader");
+
+GraphXSpace = 20;
+SetChartOptions(0,chartShowArrows|chartShowDates);
+SetChartBkColor(ParamColor("bkcolor",ColorRGB(0,0, 0)));
+GfxSetBkMode(0); 
+GfxSetOverlayMode(1);
+SetBarFillColor(IIf(C>O,ParamColor("Candle UP Color", colorGreen),IIf(C<=O,ParamColor("Candle Down Color", colorRed),colorLightGrey)));
+Plot(C,"\nPrice",IIf(C>O,ParamColor("Wick UP Color", colorDarkGreen),IIf(C<=O,ParamColor("Wick Down Color", colorDarkRed),colorLightGrey)),64,0,0,0,0);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
+
+MaximumPositions = 15;
+InitialEquity = 300000;
+CompoundedProfits = 1; //1 = yes, 0 = no
+CommissionAmount = 25; 
+
+SetOption( "InitialEquity", InitialEquity );
+SetOption( "MaxOpenPositions", MaximumPositions);
+SetOption( "CommissionMode", 2 );//1 = percent, 2 = fixed
+SetOption( "CommissionAmount", CommissionAmount );
+RoundLotSize = 1;
+
+
+
+
+
+
+
+
+//Check market trend
+SetForeign("NSE:NIFTY");
+indexroc= ROC(C,30);
+RestorePriceArrays();
+
+SetForeign("CURRENCYCOM:GOLD");
+goldroc=ROC(C,30);
+RestorePriceArrays();
+
+goodcandle= ((High-Low)*.7 < (Close-Open)) AND Ref(Volume,0)> MA(Volume,20);
+
+LongEntry = indexroc > 3 and indexroc > goldroc AND ROC(C,20)>30 ;
+
+longexit = indexroc < 3 and goldroc< 3;
+
+
+stop_amount = IIf(indexroc > 3, 60, 10);// percent stop amount
+
+Sell = 0;
+SellPrice = Close;
+ApplyStop(stopTypeLoss, stopModePercent, stop_amount, exitatstop = 0, volatile = 1);
+
+ 
+ 
+ Buy=LongEntry;
+ Sell=longexit ;
+ Buy= ExRem( Buy, Sell);
+Sell= ExRem( Sell, Buy);
+
+ HV = StDev(ROC(C,1),100)*sqrt( 100 );
+PositionScore = 1 / Hv;
+
+//Position Size
+PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
+
+
+SetTradeDelays( 1, 1, 0, 0 );
+SetOption( "AllowSameBarExit", 0 );
+
+
+BuyPrice=SellPrice=Close; 
+Short=Cover=0;
+
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorGreen, 0, L, Offset=-40); 
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorLime, 0,L, Offset=-50); 
+PlotShapes(IIf(Buy, shapeUpArrow, shapeNone),colorWhite, 0,L, Offset=-45); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorRed, 0, H, Offset=40); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorOrange, 0,H, Offset=50); 
+PlotShapes(IIf(Sell, shapeDownArrow, shapeNone),colorWhite, 0,H, Offset=-45); 
+
+
+
+
+
+
