@@ -38,16 +38,16 @@ RestorePriceArrays();
 
 goodcandle= ((High-Low)*.7 < (Close-Open)) AND Ref(Volume,0)> MA(Volume,20);
 
-LongEntry = indexroc > 3 and indexroc > goldroc AND ROC(C,20)>30 ;
+LongEntry = indexroc > goldroc AND ROC(C,20)>30 AND Volume>100000;//indexroc > 3 and 
 
-longexit = indexroc < 3 and goldroc< 3;
+longexit = indexroc < 3 AND goldroc< 3;
 
 
-stop_amount = IIf(indexroc > 3, 60, 10);// percent stop amount
+stop_amount = IIf(indexroc > goldroc, 30, 10);// percent stop amount
 
 Sell = 0;
-SellPrice = Close;
-ApplyStop(stopTypeLoss, stopModePercent, stop_amount, exitatstop = 0, volatile = 1);
+
+ApplyStop(stopTypeTrailing, stopModePercent, stop_amount, exitatstop = 0, volatile = 1);
 
  
  
