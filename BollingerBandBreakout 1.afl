@@ -39,7 +39,7 @@ BBBottom = BBandBot (Close,100,1);	//Lower Bollinger  Band
 BBBottomup = BBandTop (Close,100,1);
 BBWidth = ( (BBTop - BBBottom)  / MA_100 ) * 100;  // Bollinger Band Width
 
-goodcandle= ((High-Low)*.75 < (Close-Open)) AND Ref(Volume,-1)> MA(Volume,20);
+goodcandle= ((High-Low)*.7 < (Close-Open)) AND Ref(Volume,0)> MA(Volume,20);
 
 LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth) ;
 LongExit = C < BBandBot(C, BBBottomPeriods, BBBottomWidth);
@@ -56,7 +56,7 @@ Plot(BBBottom,"",colorDarkRed,styleThick);
 
 //Check market trend
 SetForeign("NSE:CNX500");
-Par=Optimize("days",125,50,150,1);
+Par=Optimize("days",120,50,250,1);
 IndexDownTrend = C < MA(C,Par);
 RestorePriceArrays();
 
@@ -69,7 +69,7 @@ PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/Maxim
 
 //Buy/Sell signals
 Buy=  Ref(LongEntry,-0)  AND NOT Ref(IndexDownTrend,-0)  AND BBWidth<38 AND goodcandle;// NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
-Sell= Ref(LongExit,-1) OR (Ref(IndexDownTrend,-1) AND  L<MA(C,100)); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
+Sell= Ref(LongExit,-1) OR (Ref(IndexDownTrend,-1) AND   L<MA(C,100)); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
 
 
 Buy= ExRem( Buy, Sell);
