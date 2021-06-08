@@ -1,0 +1,144 @@
+_SECTION_BEGIN("weekend trend trader");
+
+GraphXSpace = 20;
+SetChartOptions(0,chartShowArrows|chartShowDates);
+SetChartBkColor(ParamColor("bkcolor",ColorRGB(0,0, 0)));
+GfxSetBkMode(0); 
+GfxSetOverlayMode(1);
+SetBarFillColor(IIf(C>O,ParamColor("Candle UP Color", colorGreen),IIf(C<=O,ParamColor("Candle Down Color", colorRed),colorLightGrey)));
+Plot(C,"\nPrice",IIf(C>O,ParamColor("Wick UP Color", colorDarkGreen),IIf(C<=O,ParamColor("Wick Down Color", colorDarkRed),colorLightGrey)),64,0,0,0,0);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ));
+
+MaximumPositions = 20;
+InitialEquity = 300000;
+CompoundedProfits = 1; //1 = yes, 0 = no
+CommissionAmount = 25; 
+
+SetOption( "InitialEquity", InitialEquity );
+SetOption( "MaxOpenPositions", MaximumPositions);
+SetOption( "CommissionMode", 2 );//1 = percent, 2 = fixed
+SetOption( "CommissionAmount", CommissionAmount );
+RoundLotSize = 1;
+
+
+
+
+
+
+num=Optimize("ROC",10,10,50,.5);
+
+//Check market trend
+SetForeign("NSE:CNX500");
+indexroc= ROC(C,num);
+indextr=C>MA(C,100);
+RestorePriceArrays();
+
+SetForeign("NSE:GOLDBEES");
+goldroc=ROC(C,num);
+RestorePriceArrays();
+
+SetForeign("CURRENCYCOM:GOLD");
+igoldroc=ROC(C,num);
+RestorePriceArrays();
+
+goodcandle= ((High-Low)*.7 < (Close-Open)) ;
+
+LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>32 AND Volume>100000 AND Close > Ref(HHV(High,52),-1)*.9 AND Close < Ref(HHV(High,52),-1)*1.05 ; 
+
+longexit = indexroc <  goldroc AND   indexroc <  igoldroc ;
+
+
+stop_amount = IIf((indexroc > goldroc and  indexroc >  igoldroc ), 30, 10);// percent stop amount
+
+ Buy=LongEntry;
+ Sell = 0;
+//6. Add a two-stage trailing stop
+//=================================================================================
+
+
+longTrailPerc = IIF(longexit, 0.40, 0.10);
+stopValue = H * (1.0 - longTrailPerc);
+
+bBuySignal = 0;
+trailARRAY = Null;
+trailstop = 0;
+
+for( i = 1; i < BarCount; i++ )
+{
+
+	//Raise stops first, before checking for
+	if( trailstop > 0 )
+	{
+      trailstop = Max( stopValue[i], trailstop );
+      trailARRAY[ i ] = trailstop;
+	}
+
+
+
+   if( trailstop == 0 AND (Buy[ i ] OR bBuySignal) ) 
+   { 
+      if(bBuySignal) {
+		trailstop = stopValue[i];
+		bBuySignal = 0; //turn off the signal
+		}
+	  else
+		bBuySignal = 1;
+   }
+   else Buy[ i ] = 0; // remove excess buy signals
+
+   if((trailstop > 0) AND Close[ i ] < trailstop )
+   {
+      Sell[ i ] = 1;  //This is the sale!
+      trailstop = 0;
+      
+      if (i+1 < BarCount)
+		SellPrice[i] = Open[i+1];  //Use tomorrow's open
+	  else 
+		SellPrice[i] = Close[i];   //Use today's close.
+   }
+
+   if( trailstop > 0 )
+   {
+      trailstop = Max( stopValue[i], trailstop );
+      trailARRAY[ i ] = trailstop;
+   }
+
+}
+
+
+ 
+ 
+
+
+BuyPrice = Open; // Buy the next day at open
+SellPrice = Open; // Sell the next day at open
+
+Buy = ExRem( Buy, Sell ); // Removes additional buy signals
+Sell = ExRem( Sell, Buy ); // Removes additional sell signals
+InTrade = Flip(Buy, Sell);  //Array is 1 if in the trade, otherwise 0
+// HV = StDev(ROC(C,1),52)*sqrt( 52 );
+//PositionScore = 1 / Hv;
+PositionScore = ((10000/Close) * ATR(40))/100;
+//Position Size
+PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
+
+
+SetTradeDelays( 1, 1, 0, 0 );
+SetOption( "AllowSameBarExit", 0 );
+
+
+BuyPrice=SellPrice=Open; 
+Short=Cover=0;
+
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorGreen, 0, L, Offset=-40); 
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorLime, 0,L, Offset=-50); 
+PlotShapes(IIf(Buy, shapeUpArrow, shapeNone),colorWhite, 0,L, Offset=-45); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorRed, 0, H, Offset=40); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorOrange, 0,H, Offset=50); 
+PlotShapes(IIf(Sell, shapeDownArrow, shapeNone),colorWhite, 0,H, Offset=-45); 
+
+
+
+
+
+

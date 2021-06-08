@@ -76,6 +76,7 @@ cond4 = C <= Param("Max Buy Price", 1000.00, 10.00, 5000.00, 1); // Buy only if 
 cond5 = liqfactor; // Buy only when the Liquidity filter is TRUE
 cond6 = ROCFilter; // Buy only when the Rate of Change filter is TRUE
 
+
 Buy = cond1
 AND cond2
 AND cond3
@@ -222,11 +223,11 @@ PlotShapes( Ref( Sell, -1 ) * shapeHollowCircle, colorRed, 0, O, 0, 0 ); // Disp
 
 Indexfilter = IIf( RegimeFilter, True, False ); // If Index Filter is TRUE (ON), or If Index Filter is FALSE (OFF),
 RibbonColor = IIf( Indexfilter, colorGreen, colorRed ); // If Index Filter is TRUE (ON) the ribbon is GREEN, or If Index Filter is FALSE (OFF) the ribbon is Red
-Plot( 1, "", RibbonColor, styleArea | styleOwnScale | styleNoLabel, -0.0001, 190 ); // Plots Index Filter Ribbon [green = ON] [Red = OFF]
+Plot( 5, "", RibbonColor, styleArea | styleOwnScale | styleNoLabel, -0.0001, 190 ); // Plots Index Filter Ribbon [green = ON] [Red = OFF]
 
 for( i = 1; i < BarCount; i++ )
 {
-if( Buy[i - 1] ) PlotText( "Buy\n@ " + O[i], i, L[i] * 0.9, colorBlack ); // Displays white buy price (opening price) under the white box (buy bar)
+if( Buy[i - 1] ) PlotText( "Buy\n@ " + O[i], i, L[i] * 0.9, colorGreen ); // Displays white buy price (opening price) under the white box (buy bar)
 
 if( sell[i - 1] ) PlotText( "Sell\n@ " + o[ i ], i, H[ i ] * 1.1, colorRed ); // Displays yellow sell price (opening price) above the yellow circle (sell bar)
 
@@ -241,9 +242,9 @@ Plot(DonchianLower,"DL",colorBlue,styleThick, zorder=-5);
 for( i = 1; i < BarCount; i++ )
 {
 	
-	if (Buy[i]) PlotTextSetFont("+", "Arial", 14, i, C[i] + (C[i] * 0.07), colorRed);
+	if (Buy[i]) PlotTextSetFont("+", "Arial", 14, i, C[i] + (C[i] * 0.07), colorYellow);
 	
-	if( InTrade[i] ) PlotTextSetFont( "+", "Arial", 12, i, trailARRAY[i], colorBlack ); //plot stop loss 
+	if( InTrade[i] ) PlotTextSetFont( "+", "Arial", 10, i, trailARRAY[i], colorWhite ); //plot stop loss 
 
 }
 
@@ -251,3 +252,14 @@ for( i = 1; i < BarCount; i++ )
 //Plot(MAFilter, "SMA", colorOrange, styleLine | styleThick, zorder = 5);
 
 _SECTION_END();
+
+
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorGreen, 0, L, Offset=-40); 
+PlotShapes(IIf(Buy, shapeSquare, shapeNone),colorLime, 0,L, Offset=-50); 
+PlotShapes(IIf(Buy, shapeUpArrow, shapeNone),colorWhite, 0,L, Offset=-45); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorRed, 0, H, Offset=40); 
+PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorOrange, 0,H, Offset=50); 
+PlotShapes(IIf(Sell, shapeDownArrow, shapeNone),colorWhite, 0,H, Offset=-45); 
+
+
+
