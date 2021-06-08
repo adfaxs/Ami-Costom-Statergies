@@ -1,0 +1,253 @@
+
+
+
+_SECTION_BEGIN( "Weekend Trend Trader 5.0" );
+/********************************************
+Skate's WTT Weekly Modified Strategy for ASF Members
+Created by: Skate - Last revision 12th August 2020
+Heavily Modified by: dpong 6th January 2021
+*********************************************/
+
+//=================================================================================
+//1. The "SetOptions" are management options & they are a feature of Amibroker
+//=================================================================================
+TradingFunds = Param( "Trading Funds - $", 50000, 1000, 10000000, 1000 ); // User-definable parameter, accessible via Exploration parameters - changes are reflected immediately. (Default $5k bets) - INSERT any amount
+SetOption( "InitialEquity", 1000000 ); // $100k Inital Equity (allows for 20 X $5k bets)
+SetOption( "PriceBoundChecking", 1 ); // True: Adjust prices so that they fall within the High-Low range
+SetOption( "CommissionMode", 2 ); // Use $ amount
+SetOption( "CommissionAmount", 0.0 ); // CommSec commission rate
+SetOption( "UsePrevBarEquityForPosSizing", 1 ); // True: Use previous bar closing equity to perform position sizing
+SetOption( "AllowSameBarExit", False ); // False: Trade is exited & we move to next bar ignoring other signals
+SetTradeDelays( 1, 1, 1, 1 ); // Trade delays, the delay is required for backtesting
+
+
+//=================================================================================
+//2. The "Index Filter" - decides when we will trade & also our trailing stop levels
+//=================================================================================
+SetForeign( "NSE:NIFTY", True , True ); // I've used the new Norgate Updater (NDU) format - change if the format is different to your data supplier
+MAfilter = MA( C, 10 ); // 10 week lookback period
+RegimeFilter = C > MAfilter; // Index Filter = ON: When the close is greater than the 10 week simple moving average the Index Filter is ON [trailing stop set to 20%] + [buy + sell signals generated]
+RestorePriceArrays( True ); // Restores original price and volume arrays after the call to SetForeign.
+//=================================================================================
+//3. Add all our other filters
+//=================================================================================
+
+TimeFrameSet(inDaily);  		//Switch to Daily time-frame 
+AvgVolumeInDaily = MA(V, 7);					//Get 7 day average Volume
+AvgTurnoverInDaily = MA(C, 7) * AvgVolumeInDaily;  	//Get 7 day average of Close * Volume
+
+TimeFrameRestore();   //Switch back to weekly time-frame.
+
+AvgVolume = TimeFrameExpand(AvgVolumeInDaily, inDaily);
+AvgTurnover = TimeFrameExpand(AvgTurnoverInDaily, inDaily);
+
+//Make sure AvgTurnover > $500,000 and AvgVolume > 500,000 shares
+LiqFactor = (AvgTurnover > 500) AND (AvgVolume > 500);
+
+
+//Liqfactor = MA(V,20) > 100000;  // Avg volume 20 periods greater than 100,000.
+ROCFilter = ROC( C, 20 ) > 30; // Rate Of Change (ROC) Momentum filter
+
+BreakoutPeriod = Param( "Breakout Period", 20, 5, 100, 1 ); // 20 week Lookback period
+
+//Compute Donchian Channel upper AND lower
+DonchianUpper =HHV(H,BreakoutPeriod);
+DonchianLower = LLV(L,BreakoutPeriod);
+
+
+//=================================================================================
+//4. Add a Buy condition
+//=================================================================================
+
+// Condition 1 is a *new* 20 week breakout, so look back 8 weeks.
+Cond1 = Ref(DonchianUpper, -1) < C;
+Cond1 = Ref(DonchianUpper, -2) >= Ref(DonchianUpper, -1) AND Cond1;
+Cond1 = Ref(DonchianUpper, -3) >= Ref(DonchianUpper, -2) AND Cond1;
+Cond1 = Ref(DonchianUpper, -4) >= Ref(DonchianUpper, -3) AND Cond1;
+Cond1 = Ref(DonchianUpper, -5) >= Ref(DonchianUpper, -4) AND Cond1;
+Cond1 = Ref(DonchianUpper, -6) >= Ref(DonchianUpper, -5) AND Cond1;
+Cond1 = Ref(DonchianUpper, -7) >= Ref(DonchianUpper, -6) AND Cond1;
+Cond1 = Ref(DonchianUpper, -8) >= Ref(DonchianUpper, -7) AND Cond1;
+
+
+Cond2 = RegimeFilter; // Buy ONLY when the Index Filter is ON
+cond3 = C >= Param("Min Buy Price", 10.00, 1.00, 500.00, 1); // Buy only if the closing price is greater than min price.
+cond4 = C <= Param("Max Buy Price", 1000.00, 10.00, 5000.00, 1); // Buy only if the closing price is less than max price
+cond5 = liqfactor; // Buy only when the Liquidity filter is TRUE
+cond6 = ROCFilter; // Buy only when the Rate of Change filter is TRUE
+
+Buy = cond1
+AND cond2
+AND cond3
+AND cond4
+AND cond5
+AND cond6;
+
+
+ 
+//=================================================================================
+//5. Add a sell condition
+//=================================================================================
+
+Sell = 0;  //We will handle sells "manually" when stop loss is hit
+
+//=================================================================================
+//6. Add a two-stage trailing stop
+//=================================================================================
+
+
+longTrailPerc = IIF(RegimeFilter, 0.40, 0.10);
+stopValue = H * (1.0 - longTrailPerc);
+
+bBuySignal = 0;
+trailARRAY = Null;
+trailstop = 0;
+
+for( i = 1; i < BarCount; i++ )
+{
+
+	//Raise stops first, before checking for
+	if( trailstop > 0 )
+	{
+      trailstop = Max( stopValue[i], trailstop );
+      trailARRAY[ i ] = trailstop;
+	}
+
+
+
+   if( trailstop == 0 AND (Buy[ i ] OR bBuySignal) ) 
+   { 
+      if(bBuySignal) {
+		trailstop = stopValue[i];
+		bBuySignal = 0; //turn off the signal
+		}
+	  else
+		bBuySignal = 1;
+   }
+   else Buy[ i ] = 0; // remove excess buy signals
+
+   if((trailstop > 0) AND Close[ i ] < trailstop )
+   {
+      Sell[ i ] = 1;  //This is the sale!
+      trailstop = 0;
+      
+      if (i+1 < BarCount)
+		SellPrice[i] = Open[i+1];  //Use tomorrow's open
+	  else 
+		SellPrice[i] = Close[i];   //Use today's close.
+   }
+
+   if( trailstop > 0 )
+   {
+      trailstop = Max( stopValue[i], trailstop );
+      trailARRAY[ i ] = trailstop;
+   }
+
+}
+
+
+
+
+
+//=================================================================================
+//7. Add "Position Sizing"
+//=================================================================================
+BuyPrice = Open; // Buy the next day at open
+SellPrice = Open; // Sell the next day at open
+
+Buy = ExRem( Buy, Sell ); // Removes additional buy signals
+Sell = ExRem( Sell, Buy ); // Removes additional sell signals
+InTrade = Flip(Buy, Sell);  //Array is 1 if in the trade, otherwise 0
+
+PosQty = 20; // Position Quantity = Maximum 20 positions
+PositionSize = -100 / posqty; // 100% of the equity divided by the Position Size
+SetOption( "MaxOpenPositions", PosQty ); // Maximum number of open position
+
+//=================================================================================
+//8. Add "Filters for the Exploration Analysis"
+//=================================================================================
+Filter = Buy OR Sell; // Buy & Sell Filters
+
+//=================================================================================
+//9. Add Buy & Sell coding for use in trading the pre-auction
+//=================================================================================
+BuyOffered = Close * 1.03; // +3% Buy premium over the last closing price
+BuyOffer = ceil( BuyOffered * 100 ) / 100; // The amount is rounded up no matter the price (ceil function used)
+
+SellOffered = Close * 0.97; // -3% Sell premium below the last closing price
+SellOffer = floor( SellOffered * 100 ) / 100; // The amount is rounded down no matter the price (floor function used)
+
+//=================================================================================
+//10. Add the Exploration code
+//=================================================================================
+ToBuyPosSize = floor( TradingFunds / BuyOffer ); // Trading Funds divided by buy offer of (+3%) buy premium over the last closing price
+ToBuyPosCost = BuyOffer * ToBuyPosSize; // The cost of buying the amount of share
+
+PositionScore = ((10000/Close) * ATR(40))/100; //Nick Radge - "bang for buck".
+//PositionScore = ROC(20);  //I used to use this.
+
+//=================================================================================
+//11. Add columns to report & sort the Exploration Analysis results
+//=================================================================================
+AddColumn( IIf( Buy, ToBuyPosSize, Null ), "# shares", 1, colorWhite, colorDarkGreen, 90 ); // Exploration Analysis - this column displays quantity of shares to buy
+AddColumn( IIf( Buy, BuyOffer, Null ), "$ Buy Offer", 1.2, colorWhite, colorDarkGreen, 110 ); // Exploration Analysis - this column displays pre-auction buy offer price (+3% premium added to the last closing price)
+AddColumn( IIf( Buy, ToBuyPosCost, Null ), "$ Cost", 1.2, colorWhite, colorDarkGreen, 80 ); // Exploration Analysis - this column displays the total ($) you will pay for the qty of shares at the +3% primum
+AddColumn( IIf( Sell, SellOffer, Null ), "$ Sell Offer", 1.2, colorWhite, colorRed, 110 ); // Exploration Analysis - this column displays pre-auction sell offer price (-3% discount to the last closing price)
+AddColumn( IIf( Buy, Ref(trailARRAY, 1), Null), "Stop Loss", 1.2, colorWhite, colorGreen, 110);  //see stop loss 
+AddColumn( IIf( Buy, PositionScore, Null), "PositionScore", 1, colorWhite, colorGreen, 110);
+//AddColumn( IIf(Buy, AvgVolume, Null), "Avg Vol" , colorWhite, colorGreen, 90);
+//AddColumn( IIf(Buy, AvgTurnover, Null), "Avg Turn", colorWhite, colorGreen, 90);
+
+
+SetSortColumns( -8, 2, -3, -4, -5, -6, 1 ); // Sort the columns in correct order
+_SECTION_END();
+
+//=================================================================================
+//12. Add code to the chart & plots the signals. Also adding an Index Ribbon
+//=================================================================================
+_SECTION_BEGIN( "Price" );
+
+SetChartOptions( 0, chartShowArrows | chartShowDates );
+_N( Title = StrFormat( "{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) Vol " + WriteVal( V, 1.0 ) + " {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 ) ) ) ); // Chart settings
+
+
+Plot( C, "Close", ParamColor( "Color", colorBlack ),
+ParamStyle( "Style", styleNoTitle | styleCandle, maskAll ), zorder=-5 ); // User-definable parameter, accessible via Chart parameters - changes are reflected immediatelly. (Bar Chart Default)
+
+PlotShapes( Buy*shapehollowUpArrow, colorBlack, 0, Low, -20 ); // Displays Buy up arrow on the signal bar
+PlotShapes( ( Sell > 0 ) * shapeDownArrow, ColorRed, 0, High, -40 ); // Displays Sell down arrow on the signal bar
+PlotShapes( Ref( Buy, -1 ) * shapeHollowSquare, colorBlack, 0, O, 0, 0 ); // Displays a white square on the buy bar
+PlotShapes( Ref( Sell, -1 ) * shapeHollowCircle, colorRed, 0, O, 0, 0 ); // Displays a yellow circle on the sell bar
+
+
+Indexfilter = IIf( RegimeFilter, True, False ); // If Index Filter is TRUE (ON), or If Index Filter is FALSE (OFF),
+RibbonColor = IIf( Indexfilter, colorGreen, colorRed ); // If Index Filter is TRUE (ON) the ribbon is GREEN, or If Index Filter is FALSE (OFF) the ribbon is Red
+Plot( 1, "", RibbonColor, styleArea | styleOwnScale | styleNoLabel, -0.0001, 190 ); // Plots Index Filter Ribbon [green = ON] [Red = OFF]
+
+for( i = 1; i < BarCount; i++ )
+{
+if( Buy[i - 1] ) PlotText( "Buy\n@ " + O[i], i, L[i] * 0.9, colorBlack ); // Displays white buy price (opening price) under the white box (buy bar)
+
+if( sell[i - 1] ) PlotText( "Sell\n@ " + o[ i ], i, H[ i ] * 1.1, colorRed ); // Displays yellow sell price (opening price) above the yellow circle (sell bar)
+
+}
+
+
+//Plot Donchian high and low
+Plot(DonchianUpper,"DU",colorBlue,styleThick, zorder=-5);
+Plot(DonchianLower,"DL",colorBlue,styleThick, zorder=-5);
+//PlotOHLC(DonchianLower, DonchianUpper, DonchianLower, DonchianUpper, "", ColorRGB(250, 250, 255) , style=styleCloud, zorder=-5);
+//Plot Stop Loss Levels
+for( i = 1; i < BarCount; i++ )
+{
+	
+	if (Buy[i]) PlotTextSetFont("+", "Arial", 14, i, C[i] + (C[i] * 0.07), colorRed);
+	
+	if( InTrade[i] ) PlotTextSetFont( "+", "Arial", 12, i, trailARRAY[i], colorBlack ); //plot stop loss 
+
+}
+
+
+//Plot(MAFilter, "SMA", colorOrange, styleLine | styleThick, zorder = 5);
+
+_SECTION_END();

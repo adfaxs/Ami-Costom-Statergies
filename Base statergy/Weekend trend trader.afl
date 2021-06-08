@@ -61,9 +61,9 @@ ApplyStop(stopTypeTrailing, stopModePercent, stop_amount, exitatstop = 0, volati
 Buy= ExRem( Buy, Sell);
 Sell= ExRem( Sell, Buy);
 
-// HV = StDev(ROC(C,1),52)*sqrt( 52 );
-//PositionScore = 1 / Hv;
-PositionScore = ((10000/Close) * ATR(40))/100;
+ HV = StDev(ROC(C,1),52)*sqrt( 52 );
+PositionScore = 1 / Hv;
+
 //Position Size
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
