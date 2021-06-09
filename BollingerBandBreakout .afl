@@ -34,6 +34,22 @@ MA_100 = MA (C,50);
 
 
 
+days=30;
+SetForeign("NSE:NIFTY");
+IndexDownTrend = C <eMA(L,120);
+indexroc=ROC(C,days);
+RestorePriceArrays();
+
+SetForeign("NSE:GOLDBEES");
+goldroc=ROC(C,days);
+RestorePriceArrays();
+
+SetForeign("CURRENCYCOM:GOLD");
+igoldroc=ROC(C,days);
+RestorePriceArrays();
+
+trend = (indexroc >  goldroc OR   indexroc >  igoldroc );
+
 BBTop = BBandTop (Close,100,3);	//Upper Bollinger Band 
 BBBottom = BBandBot (Close,100,1);	//Lower Bollinger  Band 
 BBBottomup = BBandTop (Close,100,1);
@@ -41,7 +57,7 @@ BBWidth = ( (BBTop - BBBottom)  / MA_100 ) * 100;  // Bollinger Band Width
 
 goodcandle= ((High-Low)*.7 < (Close-Open)) AND Ref(Volume,0)> MA(Volume,20);
 
-LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth) ;
+LongEntry = C > BBandTop(C, BBTopPeriods, BBTopWidth) AND trend;
 LongExit = C < BBandBot(C, BBBottomPeriods, BBBottomWidth);
 
 
@@ -68,8 +84,8 @@ PositionScore = 1 / Hv;
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
 //Buy/Sell signals
-Buy=  Ref(LongEntry,-0)  AND NOT Ref(IndexDownTrend,-0)  AND BBWidth<38 AND goodcandle;// NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
-Sell= Ref(LongExit,-1) OR (Ref(IndexDownTrend,-1) AND   L<MA(C,100)); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
+Buy=  Ref(LongEntry,-1)  AND goodcandle;// NOTE: Remove the 'Ref(InIndex,-1)' condition if you do not have index constituents data from Premium Data
+Sell= Ref(LongExit,-1) ;//OR (NOT Ref(trend,-1) AND   L<MA(C,100)); //EndDate; //NOTE: Remove the 'DateTime()==GetFnData("DelistingDate")' condition if you do not have index constituents data from Premium Data
 
 
 Buy= ExRem( Buy, Sell);
