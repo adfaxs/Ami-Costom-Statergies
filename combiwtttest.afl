@@ -30,7 +30,7 @@ RoundLotSize = 1;
 
 
 
-num=9;
+num=Optimize("atrr",9.5,1,20,.5);
 
 //Check market trend
 SetForeign("NSE:NIFTY");
@@ -48,9 +48,11 @@ RestorePriceArrays();
 
 goodcandle= ((High-Low)*.7 < (Close-Open)) ;
 
-LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>32 AND Volume>100000 AND Close > Ref(HHV(High,52),-1)*.9 AND Close < Ref(HHV(High,52),-1)*1.08 ; 
+LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>30 AND Volume>100000 AND Close > Ref(HHV(High,52),-1)*.9 AND Close < Ref(HHV(High,52),-1)*1.08 ;
 
-trend = (indexroc >  goldroc OR   indexroc >  igoldroc ) ;// OR ROC(C,20)>0;
+
+
+trend = indexroc > goldroc or indexroc >  igoldroc ;//// OR ROC(C,20)>0;
 
 
 
@@ -59,15 +61,16 @@ trend = (indexroc >  goldroc OR   indexroc >  igoldroc ) ;// OR ROC(C,20)>0;
  Sell = 0;
  
  
- days_ATR = Optimize("atrr",4,1,200,1);
+ days_ATR = Param("atrr",4,1,200,1);
 ATRvar = ATR(days_ATR)*1;
+atrval=.4;
  
 //6. Add a two-stage trailing stop
 //=================================================================================
 
 
 longTrailPerc = IIF(trend, 0.30, 0.10);
-stopValue =  IIf(trend,O-(ATRvar*4),o-(ATRvar*.4));// H * (1.0 - longTrailPerc);
+stopValue =  IIf(trend,O-(ATRvar*4),O-(ATRvar*atrval));// H * (1.0 - longTrailPerc);
 
 bBuySignal = 0;
 trailARRAY = Null;
