@@ -46,15 +46,27 @@ SetForeign("CURRENCYCOM:GOLD");
 igoldroc=ROC(C,num);
 RestorePriceArrays();
 
+
+
+TimeFrameSet(inDaily);  		//Switch to Daily time-frame 
+AvgVolumeInDaily = MA(V, 7);					//Get 7 day average Volume
+AvgTurnoverInDaily = MA(C, 7) * AvgVolumeInDaily;  	//Get 7 day average of Close * Volume
+TimeFrameRestore();   //Switch back to weekly time-frame.
+
+AvgVolume = TimeFrameExpand(AvgVolumeInDaily, inDaily);
+AvgTurnover = TimeFrameExpand(AvgTurnoverInDaily, inDaily);
+
+//Make sure AvgTurnover > $500,000 and AvgVolume > 500,000 shares
+LiqFactor = (AvgTurnover > 1000000) AND (AvgVolume > 100000);
 goodcandle= ((High-Low)*.7 < (Close-Open)) ;
 
-LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>30 AND Volume>100000 AND Close > Ref(HHV(High,52),-1)*.9 AND Close < Ref(HHV(High,52),-1)*1.08 ;
+LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>30  AND Close > Ref(HHV(High,52),-1)*.9 AND Close < Ref(HHV(High,52),-1)*1.08 AND LiqFactor;//AND Volume>100000
 
 
 
-trend = indexroc > goldroc or indexroc >  igoldroc ;//// OR ROC(C,20)>0;
+trend =   (indexroc > goldroc) ;//OR  ( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;
 
-
+trend2= ( (indexroc >  igoldroc));
 
 
  Buy=LongEntry;
@@ -69,8 +81,8 @@ atrval=.4;
 //=================================================================================
 
 
-longTrailPerc = IIF(trend, 0.30, 0.10);
-stopValue =  IIf(trend,O-(ATRvar*4),O-(ATRvar*atrval));// H * (1.0 - longTrailPerc);
+longTrail = IIF(trend2, 0.5, 0.4);
+stopValue =  IIf(trend,O-(ATRvar*4),O-(ATRvar*longTrail));// H * (1.0 - longTrailPerc);
 
 bBuySignal = 0;
 trailARRAY = Null;
