@@ -15,9 +15,9 @@ _N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Cl
 
 TradingFunds = Param( "Trading Funds - $", 10000, 1000, 10000000, 1000 );
 MaximumPositions = 20;
-InitialEquity = 1000000;
+InitialEquity = 300000;
 CompoundedProfits = 1; //1 = yes, 0 = no
-CommissionAmount = .2; 
+CommissionAmount = .3; 
 
 SetOption( "InitialEquity", InitialEquity );
 SetOption( "MaxOpenPositions", MaximumPositions);
@@ -30,21 +30,20 @@ RoundLotSize = 1;
 
 
 
-num=Optimize("atrr",18,1,50,1);
+num=Optimize("atrr",9.5,1,20,.5);
 
 //Check market trend
 SetForeign("NSE:NIFTY");
-indexroc= ROC(C,9);
-indextr=C>MA(C,50);
+indexroc= ROC(C,num);
+indextr=C>MA(C,20);
 RestorePriceArrays();
 
 SetForeign("NSE:GOLDBEES");
-goldroc=ROC(C,9);
-goldtr=C>MA(C,num) ;
+goldroc=ROC(C,num);
 RestorePriceArrays();
 
 SetForeign("CURRENCYCOM:GOLD");
-igoldroc=ROC(C,9);
+igoldroc=ROC(C,num);
 RestorePriceArrays();
 
 
@@ -65,7 +64,7 @@ LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>30   AN
 
 
 
-trend =   NOT goldtr OR (indexroc > goldroc) ;//OR  ( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;
+trend =   (indexroc > goldroc) ;//OR  ( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;
 
 trend2= ( (indexroc >  igoldroc));
 
@@ -83,7 +82,7 @@ atrval=.4;
 
 
 longTrail = IIF(trend2, 0.5, 0.4);
-stopValue =  IIf(trend,O-(ATRvar*3.5),O-(ATRvar*longTrail));// H * (1.0 - longTrailPerc);
+stopValue =  IIf(trend,O-(ATRvar*4),O-(ATRvar*longTrail));// H * (1.0 - longTrailPerc);
 
 bBuySignal = 0;
 trailARRAY = Null;
