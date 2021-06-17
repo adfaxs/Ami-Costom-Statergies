@@ -45,6 +45,7 @@ RestorePriceArrays();
 
 SetForeign("CURRENCYCOM:GOLD");
 igoldroc=ROC(C,9);
+igoldtr=C>MA(C,num);
 RestorePriceArrays();
 
 
@@ -65,7 +66,7 @@ LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>30   AN
 
 
 
-trend =   NOT goldtr OR (indexroc > goldroc) ;//OR  ( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;
+trend =   (NOT goldtr OR (indexroc > goldroc)) ; //( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;
 
 trend2= ( (indexroc >  igoldroc));
 
@@ -83,7 +84,7 @@ atrval=.4;
 
 
 longTrail = IIF(trend2, 0.5, 0.4);
-stopValue =  IIf(trend,O-(ATRvar*3.5),O-(ATRvar*longTrail));// H * (1.0 - longTrailPerc);
+stopValue =  IIf(trend,O-(ATRvar*4),O-(ATRvar*longTrail));// H * (1.0 - longTrailPerc);
 
 bBuySignal = 0;
 trailARRAY = Null;
@@ -145,6 +146,8 @@ InTrade = Flip(Buy, Sell);  //Array is 1 if in the trade, otherwise 0
 //HV = StDev(ROC(C,1),52)*sqrt( 52 );
 //PositionScore = 1 / Hv;
 PositionScore = ((10000/Close) * ATR(40))/100;
+//PositionScore = ((10000/Close) * ADX(14))/100;
+//PositionScore = ADX(14);
 //Position Size
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
