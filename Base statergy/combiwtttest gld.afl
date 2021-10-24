@@ -13,9 +13,9 @@ _N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Cl
 
 
 
-TradingFunds = Param( "Trading Funds - $", 2750, 1000, 10000000, 1000 );
+TradingFunds = Param( "Trading Funds - $", 10000, 1000, 10000000, 1000 );
 MaximumPositions = 20;
-InitialEquity = 300000;
+InitialEquity = 500000;
 CompoundedProfits = 1; //1 = yes, 0 = no
 CommissionAmount = .2; 
 
@@ -27,19 +27,16 @@ RoundLotSize = 1;
 
 
 
-
-
-
-num=Optimize("atrr",18,1,50,1);
+num=18;
 
 //Check market trend
 SetForeign("NIFTY");
 indexroc= ROC(C,9);
-indexroc2= ROC(C,20);
-indextr=C>MA(C,50);
+indextr=C>MA(C,80);
+dni = LLV(L,14);
 RestorePriceArrays();
 
-SetForeign("GOLDBEES");
+SetForeign("gld");
 goldroc=ROC(C,9);
 goldtr=C>MA(C,num) ;
 RestorePriceArrays();
@@ -50,10 +47,30 @@ igoldtr=C>MA(C,num);
 RestorePriceArrays();
 
 
+HV = StDev(ROC(C,1),21)*sqrt( 21 );
+PositionScore = (10000*HV) * ADX(7)/100 ;
 
 TimeFrameSet(inDaily);  		//Switch to Daily time-frame 
 AvgVolumeInDaily = MA(V, 7);					//Get 7 day average Volume
 AvgTurnoverInDaily = MA(C, 7) * AvgVolumeInDaily;  	//Get 7 day average of Close * Volume
+bolidwn=C>BBandBot(C,50,1);
+boliup=C>BBandTop(C,100,2);
+Trsi=RSI(14);
+SetForeign("NIFTY");
+nrsi=RSI(14);
+/////////////////////////////////////////////////
+P = C;
+period = 150;
+width = 1;
+myMa = EMA( P, period );
+StdDev= width*Stdev( P, period );
+bandTop = myMa + StdDev;
+bandBot = myMa - StdDev;
+
+
+//////////////////////////////////////////////////////
+nidwn=C<bandBot; //BBandBot(C,150,1);
+RestorePriceArrays();
 TimeFrameRestore();   //Switch back to weekly time-frame.
 
 AvgVolume = TimeFrameExpand(AvgVolumeInDaily, inDaily);
@@ -63,29 +80,33 @@ AvgTurnover = TimeFrameExpand(AvgTurnoverInDaily, inDaily);
 LiqFactor = (AvgTurnover > 1000000) AND (AvgVolume > 100000);
 goodcandle= ((High-Low)*.7 < (Close-Open)) ;
 
-LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )AND ROC(C,20)>30   AND LiqFactor   AND Close > Ref(HHV(High,52),-1)*.9 AND Close < Ref(HHV(High,52),-1)*1.08;//AND Volume>100000
+LongEntry = (indexroc > goldroc and  indexroc >  igoldroc )  AND nrsi>60 AND Trsi>70  AND NOT nidwn AND ROC(C,20)>30   AND LiqFactor   AND Close > Ref(HHV(High,52),-1)*0.9 AND Close < Ref(HHV(High,52),-1)*1.08 AND PositionScore>80000;//AND Volume>100000
 
 
 
-trend =   (NOT goldtr OR (indexroc > goldroc)) ; //( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;
+trend =   (NOT goldtr   OR indexroc > goldroc);// AND Ref(dni,-1)<=dni; //( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;AND NOT nidwn
 
-trend2= ( (indexroc >  igoldroc));
-PositionScore = ((10000/Close) * ATR(40))/100;
+trend2= ( (indexroc >  igoldroc)) ;
 
- Buy=LongEntry ;
+
+ Buy=LongEntry;
  Sell = 0;
  
- 
+ ST=ROC(C,20)<0;
  days_ATR = Param("atrr",4,1,200,1);
 ATRvar = ATR(days_ATR)*1;
 atrval=.4;
- 
+DonchianLower = LLV(L,14);
+
+
 //6. Add a two-stage trailing stop
 //=================================================================================
-down= IIf(C<O,C,O);
 
-longTrail = IIF(trend2, 0.5, 0.4);
-stopValue =  IIf(trend,O-(ATRvar*4),O-(ATRvar*longTrail));// H * (1.0 - longTrailPerc);
+oo=(hhv(L,2)+hhv(h,2))/2;
+Lo=IIf(oo>O,O,oo);
+
+longTrail = IIF(trend2, .5, .4);
+stopValue =  IIf(trend,oo-(ATRvar*4),oo-(ATRvar*longTrail));// H * (1.0 - longTrailPerc);
 
 bBuySignal = 0;
 trailARRAY = Null;
@@ -97,7 +118,7 @@ for( i = 1; i < BarCount; i++ )
 	//Raise stops first, before checking for
 	if( trailstop > 0 )
 	{
-      trailstop = Max( stopValue[i], trailstop );
+      trailstop = Max( stopValue[i], trailstop );//Max(IIf(trend[i],stopValue[i]+ATRvar[i]/2,stopValue[i]) , trailstop );
       trailARRAY[ i ] = trailstop;
 	}
 
@@ -114,7 +135,7 @@ for( i = 1; i < BarCount; i++ )
    }
    else Buy[ i ] = 0; // remove excess buy signals
 
-   if((trailstop > 0) AND Close[ i ] < trailstop )
+   if(((trailstop > 0) AND Close[ i ] < trailstop ) )  
    {
       Sell[ i ] = 1;  //This is the sale!
       trailstop = 0;
@@ -144,17 +165,11 @@ SellPrice = Open; // Sell the next day at open
 Buy = ExRem( Buy, Sell ); // Removes additional buy signals
 Sell = ExRem( Sell, Buy ); // Removes additional sell signals
 InTrade = Flip(Buy, Sell);  //Array is 1 if in the trade, otherwise 0
-
-Buy= InTrade AND ROC(C,20)>30 AND PositionScore<15 ;
-
-
-Buy = ExRem( Buy, Sell ); // Removes additional buy signals
-Sell = ExRem( Sell, Buy ); // Removes additional sell signals
-//HV = StDev(ROC(C,1),52)*sqrt( 52 );
-//PositionScore = 1 / Hv;
-PositionScore = ((10000/Close) * ATR(40))/100;
-//PositionScore = ((10000/Close) * ADX(14))/100;
-//PositionScore = ADX(14);
+HV = StDev(ROC(C,1),21)*sqrt( 21 );
+//PositionScore =HV;
+//PositionScore = ((10000/Close) * ATR(40))/100;
+PositionScore = (10000*HV) * ADX(7)/100 ;
+//PositionScore = ADX(7)/100;
 //Position Size
 PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/MaximumPositions);
 
@@ -188,7 +203,8 @@ Plot( 5, "", RibbonColor, styleArea | styleOwnScale | styleNoLabel, -0.0001, 190
 //=================================================================================
 //8. Add "Filters for the Exploration Analysis"
 //=================================================================================
-Filter = Buy OR Sell OR InTrade; // Buy & Sell Filters
+Filter = Buy OR Sell; // Buy & Sell Filters
+
 //=================================================================================
 //9. Add Buy & Sell coding for use in trading the pre-auction
 //=================================================================================
@@ -208,13 +224,12 @@ ToBuyPosCost = BuyOffer * ToBuyPosSize; // The cost of buying the amount of shar
 //=================================================================================
 //11. Add columns to report & sort the Exploration Analysis results
 //=================================================================================
-AddColumn( IIf( Buy OR (InTrade AND ROC(C,20)>30 AND PositionScore<15), ToBuyPosSize, Null ), "# shares", 1, colorWhite, colorDarkGreen, 90 ); // Exploration Analysis - this column displays quantity of shares to buy
-AddColumn( IIf( Buy OR (InTrade AND ROC(C,20)>30 AND PositionScore<15), BuyOffer, Null ), "$ Buy Offer", 1.2, colorWhite, colorDarkGreen, 110 ); // Exploration Analysis - this column displays pre-auction buy offer price (+3% premium added to the last closing price)
-AddColumn( IIf( Buy OR (InTrade AND ROC(C,20)>30 AND PositionScore<15), ToBuyPosCost, Null ), "$ Cost", 1.2, colorWhite, colorDarkGreen, 80 ); // Exploration Analysis - this column displays the total ($) you will pay for the qty of shares at the +3% primum
+AddColumn( IIf( Buy, ToBuyPosSize, Null ), "# shares", 1, colorWhite, colorDarkGreen, 90 ); // Exploration Analysis - this column displays quantity of shares to buy
+AddColumn( IIf( Buy, BuyOffer, Null ), "$ Buy Offer", 1.2, colorWhite, colorDarkGreen, 110 ); // Exploration Analysis - this column displays pre-auction buy offer price (+3% premium added to the last closing price)
+AddColumn( IIf( Buy, ToBuyPosCost, Null ), "$ Cost", 1.2, colorWhite, colorDarkGreen, 80 ); // Exploration Analysis - this column displays the total ($) you will pay for the qty of shares at the +3% primum
 AddColumn( IIf( Sell, SellOffer, Null ), "$ Sell Offer", 1.2, colorWhite, colorRed, 110 ); // Exploration Analysis - this column displays pre-auction sell offer price (-3% discount to the last closing price)
-AddColumn( IIf( Buy OR (InTrade AND ROC(C,20)>30 AND PositionScore<15), Ref(trailARRAY, 1), Null), "Stop Loss", 1.2, colorWhite, colorGreen, 110);  //see stop loss 
-//AddColumn( IIf( Buy , PositionScore, Null), "PositionScore", 1, colorWhite, colorGreen, 110);
-AddColumn( IIf( Buy OR (InTrade AND ROC(C,20)>30 AND PositionScore<15) , PositionScore, Null), "InTrade", 1, colorWhite, colorGrey40, 110);
+AddColumn( IIf( Buy, Ref(trailARRAY, 1), Null), "Stop Loss", 1.2, colorWhite, colorGreen, 110);  //see stop loss 
+AddColumn( IIf( Buy, PositionScore, Null), "PositionScore", 1, colorWhite, colorGreen, 110);
 //AddColumn( IIf(Buy, AvgVolume, Null), "Avg Vol" , colorWhite, colorGreen, 90);
 //AddColumn( IIf(Buy, AvgTurnover, Null), "Avg Turn", colorWhite, colorGreen, 90);
 
