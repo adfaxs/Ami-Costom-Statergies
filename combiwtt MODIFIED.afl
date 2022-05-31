@@ -1,5 +1,5 @@
 _SECTION_BEGIN("weekend trend trader");
-
+//OptimizerSetEngine("cmae");
 GraphXSpace = 10;
 SetChartOptions(0,chartShowArrows|chartShowDates);
 SetChartBkColor(ParamColor("bkcolor",ColorRGB(0,0, 0)));
@@ -11,14 +11,13 @@ _N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Cl
 
 
 
-
-
-TradingFunds = Param( "Trading Funds - $", 10000, 1000, 10000000, 1000 );
 MaximumPositions = 20;
 InitialEquity = 500000;
+
+TradingFunds = Param( "Trading Funds - $", InitialEquity/MaximumPositions, 1000, 10000000, 1000 );
+
 CompoundedProfits = 1; //1 = yes, 0 = no
 CommissionAmount = .2; 
-
 SetOption( "InitialEquity", InitialEquity );
 SetOption( "MaxOpenPositions", MaximumPositions);
 SetOption( "CommissionMode", 1 );//1 = percent, 2 = fixed
@@ -38,10 +37,14 @@ SetForeign("NIFTY");
 indexroc= ROC(C,9);
 indextr=C>MA(C,10);
 dni = LLV(L,14);
-
+rsi3=RSI(3);
+wmcd=MACD();
+wmcds=Signal();
 /////////////////////////////////////////////
 TimeFrameSet(inDaily); 
 nrsi=RSI(14);
+mcd=MACD();
+mcds=Signal();
 /////////////////////////////////////////////////
 P = C;
 period = 150;
@@ -76,40 +79,92 @@ smalltr=C>MA(C,num);
 RestorePriceArrays();
 
 HV = StDev(ROC(C,1),21)*sqrt( 21 );
-PositionScorete = (10000*HV) * ADX(7)/100 ;
+PositionScorete = (10000*HV) * ADX(4)/100 ;
 
 TimeFrameSet(inDaily);  		//Switch to Daily time-frame 
 AvgVolumeInDaily = MA(V, 7);					//Get 7 day average Volume
 AvgTurnoverInDaily = MA(C, 7) * AvgVolumeInDaily;  	//Get 7 day average of Close * Volume
 bolidwn=C>BBandBot(C,50,1);
 boliup=C>BBandTop(C,100,2);
+up200=C>MA(C,200);
 
 
 TimeFrameRestore();   //Switch back to weekly time-frame.
+
+//////////////////////////////////////////////////////////////////////////
+TimeFrameSet(inMonthly);
+Composit = Foreign( "NIFTY", "C" )/Foreign( "GOLD", "C" ); 
+RSICom=Max(RSIa(Composit,14),1);
+
+TimeFrameRestore();
+
+
+
+
 Trsi=RSI(14);
 AvgVolume = TimeFrameExpand(AvgVolumeInDaily, inDaily);
 AvgTurnover = TimeFrameExpand(AvgTurnoverInDaily, inDaily);
 
 //Make sure AvgTurnover > $500,000 and AvgVolume > 500,000 shares
-LiqFactor = (AvgTurnover > 1000000) AND (AvgVolume > 100000);
+LiqFactor = (AvgTurnover > 10000000) AND (AvgVolume > 100000);
 goodcandle= ((High-Low)*.7 < (Close-Open)) ;
+lowv=MA(Volume,10)<Volume;
+tickerroc=ROC(C,9);
+////////////////////////////////////////////////////////////////
+
+D0 = (High-Low)/Volume> Ref((High-Low)/Volume,-1) AND Volume > Ref( Volume, -1);//Green
+D1 = (High-Low)/Volume< Ref((High-Low)/Volume,-1) AND Volume < Ref( Volume, -1);//Fade BROWN
+D2 = (High-Low)/Volume> Ref((High-Low)/Volume,-1) AND Volume < Ref( Volume, -1);//Fake
+D3 = (High-Low)/Volume< Ref((High-Low)/Volume,-1) AND Volume > Ref( Volume, -1);//Squat PINK
+
+
+dr=ROC(Close,1)/MA(Close,2);
+vola21=StDev(dr,21);
+
+vswitch21=((Ref(vola21,-1) <= vola21 ) + (Ref(vola21,-2) <= vola21 ) +   (Ref(vola21,-3) <= vola21 ) +   
+		(Ref(vola21,-4) <= vola21 ) +  (Ref(vola21,-5) <= vola21 ) + (Ref(vola21,-6) <= vola21 ) +   
+		(Ref(vola21,-7) <= vola21 ) +  (Ref(vola21,-8) <= vola21 ) +  (Ref(vola21,-9) <= vola21 ) +  
+		(Ref(vola21,-10) <= vola21 ) + (Ref(vola21,-11) <= vola21 ) +  (Ref(vola21,-12) <= vola21 ) +  
+		(Ref(vola21,-13) <= vola21 ) +(Ref(vola21,-14) <= vola21 ) + (Ref(vola21,-15) <= vola21 ) +
+		 (Ref(vola21,-16) <= vola21 ) + (Ref(vola21,-17) <= vola21 ) +  (Ref(vola21,-18) <= vola21 ) + 
+		 (Ref(vola21,-19) <= vola21 ) + (Ref(vola21,-20) <= vola21 ) + 1) / 21 ;
+vola14=StDev(dr,14);		
+vswitch14=((Ref(vola14,-1) <= vola14 ) + (Ref(vola14,-2) <= vola14 ) +   (Ref(vola14,-3) <= vola14 ) +   
+		(Ref(vola14,-4) <= vola14 ) +  (Ref(vola14,-5) <= vola14 ) + (Ref(vola14,-6) <= vola14 ) +   
+		(Ref(vola14,-7) <= vola14 ) +  (Ref(vola14,-8) <= vola14 ) +  (Ref(vola14,-9) <= vola14 ) +  
+		(Ref(vola14,-10) <= vola14 ) + (Ref(vola14,-11) <= vola14 ) +  (Ref(vola14,-12) <= vola14 ) +  
+		(Ref(vola14,-13) <= vola14 ) + 1) / 14 ;
+		
+vola7=StDev(dr,7);		
+vswitch7=((Ref(vola7,-1) <= vola7 ) + (Ref(vola7,-2) <= vola7 ) +   (Ref(vola7,-3) <= vola7 ) +   
+		(Ref(vola7,-4) <= vola7 ) +  (Ref(vola7,-5) <= vola7 ) + (Ref(vola7,-6) <= vola7 ) + 1) / 7 ;		
+ 
+
+/////////////////////////////////////////////////////////////////
+
 ATH = IIf( H > Ref(Highest(H),-1), H , Ref(Highest(H),-1));
-LongEntry = (indexroc > goldroc  AND indexroc >  igoldroc )  AND ROC(C,20)>30   AND LiqFactor   AND Close > Ref(HHV(High,52),-1)*0.9 AND Close < Ref(HHV(High,52),-1)*1.08 AND PositionScorete>80000 ;//AND grsi<65 AND nrsi>60 ;//AND NOT nidwn AND indextr;//AND close>Ref(LLV(low,50),-1)*2;//;   AND nrsi>60 ;//AND smalltr AND indextr;// AND nrsi>60 AND Trsi>60 AND NOT nidwn
 
-printf("indexroc"  );
-printf("goldroc %g  ",goldroc);
-printf("igoldroc %g  ",igoldroc);
-printf("smallroc %g  ",smallroc);
+ma10=MA(C,10);
+dif=C-ma10;
+perd=(dif/C)*100;
 
-trend =   (NOT goldtr   OR   indexroc>goldroc  );// (smallroc>goldroc AND   AND Ref(dni,-1)<=dni; //( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;AND NOT nidwn and  ROC(C,9)>-goldroc  and  ROC(C,9)>-goldroc
 
-trend2= ( (indexroc >  igoldroc)) ;
+
+
+//LongEntry = (indexroc > goldroc  AND indexroc >  igoldroc )  AND ROC(C,20)>30   AND LiqFactor  AND Close > Ref(HHV(High,52),-1)*0.9 AND Close < Ref(HHV(High,52),-1)*1.08  AND PositionScorete>115000 ;//                AND HaClose<HaHigh ;//AND grsi<65 AND nrsi>60 ;//AND NOT nidwn AND indextr;//AND close>Ref(LLV(low,50),-1)*2;//;   AND nrsi>60 ;//AND smalltr AND indextr;// AND nrsi>60 AND Trsi>60 AND NOT nidwn
+
+ LongEntry = (indexroc > goldroc  AND indexroc >  igoldroc )  AND ROC(C,20)>30   AND LiqFactor  AND Close > Ref(HHV(High,52),-1)*0.9 AND Close < Ref(HHV(High,52),-1)*1.08  AND PositionScorete>115000 ;//AND grsi<65 AND nrsi>60 ;//AND NOT nidwn AND indextr;//AND close>Ref(LLV(low,50),-1)*2;//;   AND nrsi>60 ;//AND smalltr AND indextr;// AND nrsi>60 AND Trsi>60 AND NOT nidwn
+  
+
+trend =   (NOT goldtr  OR  indexroc>goldroc) ;// OR wmcd>wmcds   (smallroc>goldroc AND   AND Ref(dni,-1)<=dni; //( (indexroc >  igoldroc)) ;//// OR ROC(C,20)>0;AND NOT nidwn and  ROC(C,9)>-goldroc  and  ROC(C,9)>-goldroc
+
+trend2= (indexroc >  igoldroc) ;
 
 
  Buy=LongEntry;
  Sell = 0;
  
- ST=ROC(C,20)<0;
+ ST=ROC(C,1)>8;
  days_ATR = Param("atrr",4,1,200,1);
 ATRvar = ATR(days_ATR)*1;
 atrval=.4;
@@ -119,15 +174,18 @@ DonchianLower = LLV(L,14);
 //6. Add a two-stage trailing stop
 //=================================================================================
 
-op=IIf(O<C,o,c);
-oo=(hhv(Low,2)+hhv(High,2)+hhv(Open,2)+HHV(Close,2))/4;
+n1=Optimize("n1",.33,.3,.4,.01);
+n2=Optimize("n2",.37,.3,.4,.01);
+//oo=(hhv(Low,2)+hhv(High,2)+hhv(Open,2)+HHV(Close,2))/4;
 
-//oo=(hhv(HaLow,2)+hhv(HaHigh,2)+hhv(HaOpen,2)+HHV(HaClose,2))/4;
+oo=(hhv(HaLow,2)+hhv(HaHigh,2)+hhv(HaOpen,2)+HHV(HaClose,2))/4;
 
-//oo=(hhv(L,2)+hhv(op,2))/2;//+hhv(O,2)+hhv(C,2))/4;
-Lo=IIf((oo-(ATRvar*4))>(DonchianLower-ATRvar*.29),(oo-(ATRvar*4)),(DonchianLower-ATRvar*.29));
+MA10=MA(C,20);
+Lo=IIf((oo-(ATRvar*2.6))>(DonchianLower-ATRvar*.29),(oo-(ATRvar*2.6)),(DonchianLower-ATRvar*.29));
+//Lo=IIf(((oo-(ATRvar*2.6))>(DonchianLower-ATRvar*.29)) AND ((oo-(ATRvar*2.6))>MA10),(oo-(ATRvar*2.6)),IIf(((DonchianLower-ATRvar*.29)>(oo-(ATRvar*2.6)))AND ((DonchianLower-ATRvar*.29)>MA10),(DonchianLower-ATRvar*.29), MA10 )     );
 
-longTrail = IIF(trend2, .39,.39);
+//Loo=IIf(dcandle==1,HaClose,Lo);
+longTrail = IIF(trend2, n1,n2);
 stopValue =  IIf(trend,Lo,oo-(ATRvar*longTrail));//  IIf(trend,DonchianLower-ATRvar*.35,oo-(ATRvar*.5));// H * (1.0 - longTrailPerc);oo-(ATRvar*4)
 
 bBuySignal = 0;
@@ -176,21 +234,23 @@ for( i = 1; i < BarCount; i++ )
 
 }
 
+function HVV(len)
 
- 
- 
+{
+     return StDev(log(C/Ref(C,-1)),len)*(14^.5)*100;
+}
 
-BuyPrice = Open; // Buy the next day at open
+ BuyPrice = Open; // Buy the next day at open
 SellPrice = Open; // Sell the next day at open
+
+
 
 Buy = ExRem( Buy, Sell ); // Removes additional buy signals
 Sell = ExRem( Sell, Buy ); // Removes additional sell signals
 InTrade = Flip(Buy, Sell);  //Array is 1 if in the trade, otherwise 0
 
-function HVV(len)
-{
-     return StDev(log(C/Ref(C,-1)),len)*(14^.5)*100;
-}
+
+
 
 le=14;
 
@@ -199,7 +259,7 @@ HV = StDev(ROC(C,1),21)*sqrt( 21 );
 //PositionScore = ((10000/Close) * ATR(40))/100;
 //PositionScore = (10000*HV) * ADX(7)/100 ;
 
-PositionScore = (10000*HV) * ADX(7)/100 ;
+PositionScore = (10000*HV) * ADX(4)/100 ;
 
 //PositionScore = ROC(C,le)*HVV(le) ;
 //PositionScore = ADX(7)/100;
@@ -209,12 +269,6 @@ PositionSize = IIf(CompoundedProfits,-(100/MaximumPositions),InitialEquity/Maxim
 
 SetTradeDelays( 1, 1, 0, 0 );
 //SetOption( "AllowSameBarExit", 0 );
-
-
-
-
-
-
 
 
 Plot(trailARRAY,"",colorBlue,styleThick); //plot stop loss 
@@ -232,12 +286,19 @@ PlotShapes(IIf(Sell, shapeSquare, shapeNone),colorOrange, 0,H, Offset=50);
 PlotShapes(IIf(Sell, shapeDownArrow, shapeNone),colorWhite, 0,H, Offset=-45); 
 
 
-RibbonColor = IIf( trend, colorGreen, colorRed ); // If Index Filter is TRUE (ON) the ribbon is GREEN, or If Index Filter is FALSE (OFF) the ribbon is Red
+RibbonColor = IIf( trend , colorGreen, colorRed ); // If Index Filter is TRUE (ON) the ribbon is GREEN, or If Index Filter is FALSE (OFF) the ribbon is Red
 Plot( 5, "", RibbonColor, styleArea | styleOwnScale | styleNoLabel, -0.0001, 190 ); // Plots Index Filter Ribbon [green = ON] [Red = OFF]
+//======================================================================================================================================================
+
+
+
+
+
+
 //=================================================================================
 //8. Add "Filters for the Exploration Analysis"
 //=================================================================================
-Filter = Buy OR Sell; // Buy & Sell Filters
+Filter = Buy OR Sell OR InTrade; // Buy & Sell Filters
 
 //=================================================================================
 //9. Add Buy & Sell coding for use in trading the pre-auction
@@ -258,12 +319,12 @@ ToBuyPosCost = BuyOffer * ToBuyPosSize; // The cost of buying the amount of shar
 //=================================================================================
 //11. Add columns to report & sort the Exploration Analysis results
 //=================================================================================
-AddColumn( IIf( Buy, ToBuyPosSize, Null ), "# shares", 1, colorWhite, colorDarkGreen, 90 ); // Exploration Analysis - this column displays quantity of shares to buy
+AddColumn( IIf( Buy OR InTrade, ToBuyPosSize, Null ), "# shares", 1, colorWhite, colorDarkGreen, 90 ); // Exploration Analysis - this column displays quantity of shares to buy
 AddColumn( IIf( Buy, BuyOffer, Null ), "$ Buy Offer", 1.2, colorWhite, colorDarkGreen, 110 ); // Exploration Analysis - this column displays pre-auction buy offer price (+3% premium added to the last closing price)
 AddColumn( IIf( Buy, ToBuyPosCost, Null ), "$ Cost", 1.2, colorWhite, colorDarkGreen, 80 ); // Exploration Analysis - this column displays the total ($) you will pay for the qty of shares at the +3% primum
 AddColumn( IIf( Sell, SellOffer, Null ), "$ Sell Offer", 1.2, colorWhite, colorRed, 110 ); // Exploration Analysis - this column displays pre-auction sell offer price (-3% discount to the last closing price)
 AddColumn( IIf( Buy, Ref(trailARRAY, 1), Null), "Stop Loss", 1.2, colorWhite, colorGreen, 110);  //see stop loss 
-AddColumn( IIf( Buy, PositionScore, Null), "PositionScore", 1, colorWhite, colorGreen, 110);
+AddColumn( IIf( Buy OR InTrade, PositionScore, Null), "PositionScore", 1, colorWhite, colorGreen, 110);
 //AddColumn( IIf(Buy, AvgVolume, Null), "Avg Vol" , colorWhite, colorGreen, 90);
 //AddColumn( IIf(Buy, AvgTurnover, Null), "Avg Turn", colorWhite, colorGreen, 90);
 
@@ -271,6 +332,9 @@ AddColumn( IIf( Buy, PositionScore, Null), "PositionScore", 1, colorWhite, color
 SetSortColumns( -8, 2, -3, -4, -5, -6, 1 ); // Sort the columns in correct order
 _SECTION_END();
 
-
-
+_SECTION_BEGIN("MA1");
+P = ParamField("Price field",-1);
+Periods = Param("Periods", 10, 2, 300, 1, 10 );
+Plot( MA( P, Periods ), _DEFAULT_NAME(), ParamColor( "Color", colorCycle ), ParamStyle("Style") ); 
+_SECTION_END();
 

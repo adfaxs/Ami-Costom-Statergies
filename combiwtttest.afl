@@ -15,7 +15,7 @@ _N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Cl
 
 TradingFunds = Param( "Trading Funds - $", 2750, 1000, 10000000, 1000 );
 MaximumPositions = 20;
-InitialEquity = 300000;
+InitialEquity = 500000;
 CompoundedProfits = 1; //1 = yes, 0 = no
 CommissionAmount = .2; 
 
@@ -25,7 +25,11 @@ SetOption( "CommissionMode", 1 );//1 = percent, 2 = fixed
 SetOption( "CommissionAmount", CommissionAmount );
 RoundLotSize = 1;
 
-
+//Heikin-Ashi
+HaClose = (O+H+L+C)/4; 
+HaOpen = AMA( Ref( HaClose, -1 ), 0.5); 
+HaHigh = Max( H, Max( HaClose, HaOpen ) ); 
+HaLow = Min( L, Min( HaClose, HaOpen ) ); 
 
 
 
